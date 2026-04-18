@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.O.S. NAVA INTERCEPTADA - CABINA FINAL</title>
+    <style>
+        :root {
+            --green: #00ff41;
+            --orange: #ff8c00;
+            --red: #ff0000;
+            --blood-red: #8b0000;
+            --bg: #000;
+            --hud-border: rgba(0, 255, 65, 0.2);
+            --cyan-glow: #00f2ff;
+            --glass: rgba(255, 255, 255, 0.03);
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%; height: 100%;
+            background: var(--bg);
+            color: var(--green);
+            font-family: 'Courier New', monospace;
+            overflow: hidden;
+            display: flex; justify-content: center;
+            align-items: center;
+        }
+
+        /* --- MOTOR DE ESTRELLAS --- */
+        #star-field {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1; background: radial-gradient(circle at center, #001 0%, #000 100%);
+        }
+        .star {
+            position: absolute;
+            background: white; border-radius: 50%;
+            opacity: 0.5; animation: twinkle var(--d) infinite;
+        }
+        @keyframes twinkle { 0%, 100% { opacity: 0.3;
+        } 50% { opacity: 1; } }
+
+        /* --- TERMINAL AVANZADA --- */
+        #terminal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.98);
+            z-index: 5000; display: none;
+            flex-direction: column;
+            justify-content: center; align-items: center;
+        }
+        .terminal-window {
+            width: 90%;
+            max-width: 650px; height: 450px;
+            background: #020202; border: 1px solid var(--green);
+            padding: 15px; box-shadow: 0 0 40px rgba(0, 255, 65, 0.2);
+            display: flex; flex-direction: column; position: relative;
+        }
+        .terminal-window::after {
+            content: "";
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+        .terminal-header { border-bottom: 1px solid var(--green);
+            padding-bottom: 5px; color: #fff; font-size: 0.8rem; display: flex; justify-content: space-between;
+        }
+        
+        #terminal-content {
+            flex-grow: 1;
+            overflow-y: auto; margin: 10px 0;
+            font-size: 0.85rem; line-height: 1.4; scroll-behavior: smooth;
+        }
+        .log-entry { margin-bottom: 2px;
+        }
+        .log-success { color: var(--green);
+        }
+        .log-error { color: var(--red);
+        }
+        .log-info { color: var(--cyan-glow);
+        }
+        .log-warn { color: var(--orange);
+        }
+
+        .terminal-input-line { display: flex; align-items: center; gap: 8px; margin-top: 5px;
+        }
+        .terminal-input {
+            background: transparent;
+            border: none; color: var(--green);
+            font-family: inherit; outline: none; flex-grow: 1; font-size: 0.9rem;
+        }
+
+        /* --- ESTILOS DE CABINA --- */
+        #settings-toggle {
+            position: fixed;
+            top: 20px; right: 20px; z-index: 1001;
+            background: none; border: 1px solid var(--green); color: var(--green);
+            padding: 5px 10px; cursor: pointer;
+            font-family: inherit;
+        }
+        #settings-menu {
+            position: fixed;
+            top: 60px; right: 20px; z-index: 1000;
+            background: rgba(0, 20, 0, 0.95); border: 1px solid var(--green);
+            padding: 15px; display: none;
+            flex-direction: column; gap: 10px;
+            box-shadow: 0 0 20px var(--green);
+        }
+        .key-btn { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        .scrambled { transform: translate(var(--rx), var(--ry)) rotate(var(--ra));
+        }
+
+        @keyframes camera-shake {
+            0% { transform: translate(0,0);
+            }
+            10% { transform: translate(-8px, -8px) rotate(-1deg);
+            }
+            20% { transform: translate(8px, 8px) rotate(1deg);
+            }
+            100% { transform: translate(0,0);
+            }
+        }
+        .shake { animation: camera-shake 0.1s infinite;
+        }
+
+        #cockpit {
+            position: relative;
+            z-index: 100;
+            border: 2px solid var(--green);
+            padding: 40px; background: rgba(0, 15, 0, 0.95);
+            box-shadow: inset 0 0 100px rgba(0, 255, 65, 0.1), 0 0 30px var(--green);
+            max-width: 600px; width: 90%; text-align: center;
+            clip-path: polygon(0% 15%, 15% 0%, 85% 0%, 100% 15%, 100% 85%, 85% 100%, 15% 100%, 0% 85%);
+            transition: all 1s ease-in-out;
+        }
+
+        .hud-panel {
+            position: absolute;
+            width: 100px; height: 100%;
+            border: 1px solid var(--hud-border); top: 0;
+            display: flex; flex-direction: column; justify-content: space-around;
+            font-size: 0.5rem; opacity: 0.6;
+        }
+        .left-p { left: -110px; border-right: 3px solid var(--green);
+        }
+        .right-p { right: -110px; border-left: 3px solid var(--green);
+        }
+
+        #hangman-svg {
+            width: 120px;
+            height: 120px;
+            stroke: var(--green); stroke-width: 3; fill: none;
+            margin-bottom: 10px; filter: drop-shadow(0 0 5px var(--green));
+        }
+
+        #alert-system { font-size: 0.8rem; height: 20px; color: var(--red); font-weight: bold; margin-bottom: 10px;
+            letter-spacing: 2px; }
+        #word-display { font-size: 3rem; letter-spacing: 15px; margin: 20px 0;
+            text-shadow: 0 0 15px var(--green); }
+        .keyboard { display: grid; grid-template-columns: repeat(7, 1fr);
+            gap: 5px; min-height: 120px; }
+
+        button {
+            background: rgba(0, 255, 65, 0.05);
+            border: 1px solid var(--green);
+            color: var(--green); padding: 10px 0; cursor: pointer;
+            font-family: inherit; font-weight: bold; transition: 0.2s;
+        }
+        button:hover:not(:disabled) { background: var(--green); color: #000; box-shadow: 0 0 15px var(--green);
+        }
+        button:disabled { opacity: 0.1;
+        }
+
+        /* --- EFECTOS GLITCH --- */
+        .glitch-heavy {
+            animation: glitch-vibrate 0.1s infinite;
+            filter: hue-rotate(90deg) contrast(300%) brightness(1.5);
+            box-shadow: 5px 0 red, -5px 0 blue !important;
+        }
+        .glitch-hyper {
+            animation: hyper-vibrate 0.05s infinite;
+            filter: hue-rotate(270deg) contrast(500%) brightness(2);
+            box-shadow: 15px 0 #00f2ff, -15px 0 #ff00ff !important;
+        }
+        @keyframes glitch-vibrate {
+            0% { clip-path: inset(10% 0 30% 0);
+            transform: skew(8deg); }
+            50% { clip-path: inset(40% 0 10% 0);
+            transform: skew(-8deg); }
+            100% { clip-path: inset(0 0 0 0);
+            }
+        }
+        @keyframes hyper-vibrate {
+            0% { clip-path: inset(5% 0 15% 0);
+            transform: translate(-10px, 10px) skew(15deg); }
+            50% { clip-path: inset(20% 0 5% 0);
+            transform: translate(10px, -10px) skew(-15deg); }
+            100% { clip-path: inset(0 0 0 0);
+            }
+        }
+
+        /* --- ESPACIO Y AGUJERO NEGRO --- */
+        #space-voyage {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            display: none; justify-content: center; align-items: center;
+            z-index: 10; background: #000; perspective: 1500px;
+        }
+
+        .glass-frame {
+            position: absolute;
+            width: 100%; height: 100%;
+            border: 20px solid #1a1a1a; box-sizing: border-box;
+            background: radial-gradient(circle at 50% 50%, transparent 60%, rgba(0,0,0,0.8) 100%);
+            box-shadow: inset 0 0 100px rgba(0, 242, 255, 0.1);
+            z-index: 200; pointer-events: none;
+        }
+
+        .falling-container {
+            display: flex;
+            justify-content: center; align-items: center;
+            animation: fall-into-void 35s forwards ease-in; 
+        }
+        @keyframes fall-into-void {
+            0% { transform: scale(0.1) rotate(0deg);
+            opacity: 0; }
+            5% { opacity: 1;
+            }
+            95% { opacity: 1; filter: blur(30px);
+            }
+            100% { transform: scale(20) rotate(180deg); opacity: 0;
+            filter: blur(50px); }
+        }
+
+        .black-hole {
+            position: relative;
+            width: 220px; height: 220px;
+            background: #000; border-radius: 50%;
+            box-shadow: 0 0 60px var(--red), 0 0 120px var(--blood-red), inset 0 0 120px #000;
+            z-index: 5;
+        }
+
+        .accretion-disk {
+            position: absolute;
+            width: 800px; height: 100px;
+            background: radial-gradient(ellipse, #fff 0%, var(--red) 30%, var(--blood-red) 60%, transparent 80%);
+            transform: rotateX(75deg) rotateY(35deg);
+            box-shadow: 0 0 180px var(--red);
+            filter: blur(5px); animation: plasma-flicker 0.1s infinite alternate;
+        }
+
+        @keyframes plasma-flicker { from { opacity: 0.7; } to { opacity: 1;
+        } }
+
+        /* --- PANELES FINAL BUENO --- */
+        .emergency-panel {
+            position: absolute;
+            z-index: 300;
+            background: rgba(0, 242, 255, 0.05);
+            border: 1px solid var(--cyan-glow);
+            backdrop-filter: blur(4px);
+            padding: 20px; color: var(--cyan-glow);
+            font-size: 0.75rem;
+            text-align: center;
+            cursor: pointer; transition: 0.4s;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.2), inset 0 0 10px rgba(0, 242, 255, 0.1);
+            text-transform: uppercase; letter-spacing: 1px;
+            border-radius: 2px;
+        }
+        
+        .loading-bar {
+            width: 0%;
+            height: 2px; background: var(--cyan-glow);
+            margin-top: 10px; box-shadow: 0 0 10px var(--cyan-glow);
+        }
+        .loading-active .loading-bar { width: 100%; transition: width 3s linear;
+        }
+
+        .p1 { bottom: 15%; left: 10%; transform: rotate(-5deg);
+        }
+        .p2 { bottom: 15%; right: 10%; transform: rotate(5deg);
+        }
+        .p3 { top: 10%; right: 20%; border-color: var(--orange); color: var(--orange);
+        }
+
+        .alert-overlay {
+            position: absolute;
+            top: 15%; color: var(--red);
+            font-size: 1.8rem; text-shadow: 0 0 20px red;
+            text-align: center; width: 100%; animation: pulse 0.3s infinite;
+            z-index: 250; pointer-events: none;
+        }
+        @keyframes pulse { 0% { opacity: 1;
+        } 50% { opacity: 0.2; } }
+
+        #the-void {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 9999; display: none; cursor: none;
+        }
+
+        .telemetry-log {
+            font-size: 0.8rem;
+            color: #00f2ff; text-align: left;
+            line-height: 1.3; text-shadow: 0 0 5px #00f2ff;
+            background: rgba(0, 20, 30, 0.95); padding: 15px;
+            border-left: 3px solid #00f2ff; display: inline-block;
+            max-width: 85%; pointer-events: auto;
+            max-height: 80vh; overflow-y: auto;
+        }
+        .nav-choice { margin-top: 10px; font-weight: bold; color: yellow;
+        }
+        .choice-btn { 
+            background: rgba(255, 255, 0, 0.1);
+            border: 1px solid yellow; color: yellow; 
+            padding: 5px 15px; margin: 5px; cursor: pointer; font-family: inherit;
+        }
+        .choice-btn:hover { background: yellow; color: black;
+        }
+        
+        .star-system {
+            border: 1px dashed rgba(0, 242, 255, 0.4);
+            padding: 12px; margin: 10px 0;
+            display: flex; align-items: center; gap: 15px;
+            transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: pointer;
+            background: rgba(0, 242, 255, 0.05);
+        }
+        .star-system:hover {
+            transform: scale(1.02);
+            background: rgba(0, 242, 255, 0.15);
+            border: 1px solid #00f2ff;
+            box-shadow: 0 0 20px rgba(0, 242, 255, 0.3);
+            z-index: 10;
+        }
+        .star-visual {
+            width: 45px;
+            height: 45px; border-radius: 50%;
+            box-shadow: 0 0 20px currentColor;
+            flex-shrink: 0;
+        }
+        .sys-details { font-size: 0.7rem; color: #ccc; margin-top: 4px;
+        }
+        .habitability-tag {
+            font-size: 0.65rem;
+            padding: 2px 5px; border-radius: 3px; margin-top: 5px; display: inline-block; font-weight: bold;
+        }
+        .h-yes { background: rgba(0, 255, 65, 0.2); color: #00ff41;
+            border: 1px solid #00ff41; }
+        .h-no { background: rgba(255, 0, 0, 0.2);
+            color: #ff0000; border: 1px solid #ff0000; }
+        .h-maybe { background: rgba(255, 140, 0, 0.2);
+            color: #ff8c00; border: 1px solid #ff8c00; }
+
+        @keyframes radar-spin { from { transform: rotate(0deg);
+        } to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body id="main-body">
+
+    <div id="star-field"></div>
+
+    <div id="terminal-overlay">
+        <div class="terminal-window">
+            <div class="terminal-header">
+                <span>TERMINAL_ROOT_FLORECITA_OS</span>
+                <span id="term-clock">00:00:00</span>
+            </div>
+            
+            <div id="terminal-content">
+                <div class="log-entry log-error">>> CRITICAL: SECTOR DE NAVEGACIÓN BLOQUEADO</div>
+                <div class="log-entry">>> INICIANDO PROTOCOLO DE IDENTIFICACIÓN...</div>
+                <div class="log-entry log-info">>> RECUERDO_DETECTADO: 2007_ANIVERSARIO_KEY</div>
+                <div class="log-entry">-----------------------------------------</div>
+      
+                <div id="login-section">
+                    <div class="terminal-input-line">tipo de usuario: <input type="text" id="user-in" class="terminal-input" autocomplete="off" autofocus></div>
+                    <div class="terminal-input-line">contraseña: <input type="password" id="pass-in" class="terminal-input" autocomplete="off"></div>
+                </div>
+
+                <div id="reset-section" style="display:none">
+                    <div class="log-entry log-success">>> ACCESO CONCEDIDO: BIENVENIDA FLOR MARÍA</div>
+                    <div class="log-entry log-info">>> NÚCLEO DE FOTONES UTF24: 100% | ESTADO: ESTABLE</div>
+                    <div class="terminal-input-line">> <input type="text" id="cmd-in" class="terminal-input" placeholder="/sistem_reiniciar=0" autocomplete="off"></div>
+                </div>
+            </div>
+            <div id="term-error" class="error-msg" style="padding-left:10px;"></div>
+        </div>
+    </div>
+
+    <button id="settings-toggle" onclick="toggleSettings()">⚙️ AJUSTES</button>
+    <div id="settings-menu">
+     
+    <b style="font-size: 0.7rem;">CONTROL DE CABINA</b>
+        <button onclick="resetGame()">REINICIAR SISTEMA</button>
+        <label style="font-size: 0.6rem; color: var(--orange);">
+            <input type="checkbox" id="hard-mode"> MODO CAOS (ERROR DE SELECTOR)
+        </label>
+        <button onclick="toggleSettings()" style="color:red; border-color:red">CERRAR</button>
+    </div>
+
+    <div id="cockpit">
+        <div class="hud-panel left-p">
+            <div>DEST: FLORECITA</div><div>THR: FAIL</div><div>OXY: CRIT</div><div>MSG: PEND</div>
+        </div>
+        <div class="hud-panel right-p">
+            <div>RAD: HIGH</div><div>NAV: LOST</div><div>COMM: ERR</div><div>LOVE: MAX</div>
+        </div>
+
+        <div id="alert-system">SISTEMA: BUSCANDO SEÑAL DE FLORECITA</div>
+        
+        <svg id="hangman-svg" viewBox="0 0 100 100">
+            <path d="M20,90 L80,90 M35,90 L35,10 L70,10 L70,25" stroke="var(--green)" stroke-width="2" opacity="0.3"/>
+ 
+            <circle id="h1" cx="70" cy="35" r="8" style="display:none" />
+            <line id="h2" x1="70" y1="43" x2="70" y2="70" style="display:none" />
+            <line id="h3" x1="70" y1="50" x2="55" y2="65" style="display:none" />
+            <line id="h4" x1="70" y1="50" x2="85" y2="65" style="display:none" />
+            <line id="h5" x1="70" y1="70" x2="55" y2="85" style="display:none" />
+       
+      <line id="h6" x1="70" y1="70" x2="85" y2="85" style="display:none" />
+        </svg>
+
+        <div id="word-display">_ _ _ _ _ _</div>
+        <div class="keyboard" id="keys"></div>
+
+        <div id="radar-container" style="position: absolute; bottom: 40px; right: 40px; width: 80px; height: 80px; border: 1px solid var(--hud-border); border-radius: 50%; background: rgba(0, 255, 65, 0.05); box-shadow: 0 0 10px rgba(0,255,65,0.1);">
+            <div id="radar-sweep" style="position: absolute; width: 100%; height: 100%; background: conic-gradient(from 0deg, transparent, var(--green)); opacity: 0.2; animation: radar-spin 2s linear infinite; border-radius: 50%;"></div>
+            <div id="danger-dot" style="position: absolute; width: 6px; height: 6px; background: var(--red); border-radius: 50%; top: 5%; left: 50%; display: none; box-shadow: 0 0 15px var(--red); z-index: 10;"></div>
+            <div style="position: absolute; top: 50%; left: 50%; width: 4px; height: 4px; background: var(--green); border-radius: 50%; transform: translate(-50%, -50%);"></div>
+        </div>
+    </div>
+
+    <div id="space-voyage">
+        <div class="glass-frame"></div> <div class="alert-overlay" id="warning-text">GRAVEDAD EXTREMA<br>FLORECITA, LO SIENTO...</div>
+        
+        <div class="falling-container" id="falling-obj">
+            <div class="accretion-disk"></div>
+            <div class="black-hole"></div>
+        </div>
+
+      
+   <div class="emergency-panel p1" id="btn1" onclick="panelAction('btn1')">
+            [PROTEGER A FLORECITA]
+            <div class="loading-bar"></div>
+            <span class="status-txt">ESTADO: INACTIVO</span>
+        </div>
+        <div class="emergency-panel p2" id="btn2" onclick="finalBueno()">
+            [SALTO TEMPORAL]
+            <div class="loading-bar"></div>
+       
+      <span class="status-txt">INICIALIZAR...</span>
+        </div>
+        <div class="emergency-panel p3" id="btn3" onclick="panelAction('btn3')">
+            [DATOS DE NAVEGACIÓN]
+            <div class="loading-bar"></div>
+            <span class="status-txt">ACCESO DENEGADO</span>
+        </div>
+    </div>
+
+    <div id="the-void"></div>
+
+    <script>
+        // --- MOTOR DE ESTRELLAS ---
+        const starField = document.getElementById('star-field');
+        for(let i=0; i<150; i++) {
+            const star = document.createElement('div');
+            star.className = 'star';
+            star.style.left = Math.random() * 100 + '%';
+            star.style.top = Math.random() * 100 + '%';
+            const size = Math.random() * 3 + 'px';
+            star.style.width = size; star.style.height = size;
+            star.style.setProperty('--d', Math.random() * 3 + 2 + 's');
+            starField.appendChild(star);
+        }
+
+        const secret = "ANILLO";
+        let guessed = [], fails = 0, active = true;
+        let isWin = false;
+        let waitingForNavChoice = false;
+        let lastScanTime = 0; // Para el cooldown
+        const cockpit = document.getElementById('cockpit');
+        const alertSys = document.getElementById('alert-system');
+        const body = document.getElementById('main-body');
+        const voyage = document.getElementById('space-voyage');
+        const theVoid = document.getElementById('the-void');
+        const warningText = document.getElementById('warning-text');
+        const terminal = document.getElementById('terminal-overlay');
+        const termContent = document.getElementById('terminal-content');
+        const warningMsgs = [
+            "ALERTA: FLORECITA NO RESPONDE",
+            "NÚCLEO CRÍTICO... TE EXTRAÑO",
+            "FALLO TOTAL EN MOTORES",
+            "LO SIENTO MI FLORECITA",
+            "ESTRUCTURA AL LÍMITE",
+            "PARA SIEMPRE TUYO, FLORECITA"
+        ];
+
+        // --- SISTEMA DE VOZ RESTRINGIDO ---
+        function speak(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'es-ES';
+                utterance.rate = 0.9;
+                utterance.pitch = 0.8;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        setInterval(() => {
+            const now = new Date();
+            document.getElementById('term-clock').innerText = now.toTimeString().split(' ')[0];
+        }, 1000);
+        function logTerm(text, type = '') {
+            const div = document.createElement('div');
+            div.className = `log-entry ${type}`;
+            div.innerText = ">> ";
+            const target = document.getElementById('login-section').style.display === 'none' ? 
+                           document.getElementById('reset-section') : document.getElementById('login-section');
+            termContent.insertBefore(div, target);
+            let i = 0;
+            function typeChar() {
+                if (i < text.length) {
+                    div.innerText += text.charAt(i);
+                    i++;
+                    setTimeout(typeChar, 20);
+                }
+                termContent.scrollTop = termContent.scrollHeight;
+            }
+            typeChar();
+        }
+
+        function initKeyboard() {
+            const keysContainer = document.getElementById('keys');
+            keysContainer.innerHTML = '';
+            "ABCDEFGHIJKLMNÑOPQRSTUVWXYZ".split('').forEach(l => {
+                const b = document.createElement('button');
+                b.innerText = l;
+                b.className = 'key-btn';
+                b.id = `key-${l}`;
+                b.onclick = () => {
+  
+                    if(!active) return;
+                    b.disabled = true;
+                    if(secret.includes(l)) {
+                        guessed.push(l);
+              
+                        if(document.getElementById('hard-mode').checked) scrambleKeys();
+                        update();
+                        if(Math.random() < 0.3 && !isWin) triggerTerminal();
+                    } else {
+              
+                        failAction();
+                    }
+                };
+                keysContainer.appendChild(b);
+            });
+        }
+
+        function triggerTerminal() {
+            active = false;
+            body.classList.add('glitch-heavy', 'shake');
+            setTimeout(() => {
+                terminal.style.display = 'flex';
+                logTerm("DETECCIÓN DE INTRUSO EN EL SISTEMA", "log-warn");
+                document.getElementById('user-in').focus();
+            }, 600);
+        }
+
+        function handleTerminal(e) {
+            if (e.key === 'Enter') {
+                const u = document.getElementById('user-in').value.toLowerCase().trim();
+                const p = document.getElementById('pass-in').value.trim();
+                
+                if (u === "flor maria" && p === "2007") {
+                    document.getElementById('login-section').style.display = 'none';
+                    document.getElementById('reset-section').style.display = 'block';
+                    logTerm("SISTEMA DESBLOQUEADO CON ÉXITO", "log-success");
+                    
+                    speak("Acceso concedido. Bienvenida Flor María.");
+                    document.getElementById('term-error').innerText = "";
+                    document.getElementById('cmd-in').focus();
+                } else if (u !== "" && p !== "") {
+                    logTerm("ACCESO DENEGADO. CREDENCIALES INVÁLIDAS.", "log-error");
+                    document.getElementById('term-error').innerText = "ERROR: CREDENCIALES INVÁLIDAS";
+                }
+            }
+        }
+
+        document.getElementById('user-in').addEventListener('keypress', handleTerminal);
+        document.getElementById('pass-in').addEventListener('keypress', handleTerminal);
+
+        // --- SISTEMA DE COMANDOS AMPLIADO CON SALTO TEMPORAL ---
+        const terminalCommands = {
+            "/sistem_reiniciar=0": function() {
+                logTerm("REINICIANDO MÓDULOS DE NAVEGACIÓN...", "log-success");
+                setTimeout(() => {
+                    terminal.style.display = 'none';
+                    body.classList.remove('glitch-heavy', 'shake');
+                    active = true;
+                    document.getElementById('login-section').style.display = 'block';
+                    document.getElementById('reset-section').style.display = 'none';
+                    document.getElementById('user-in').value = ""; document.getElementById('pass-in').value = "";
+                    document.getElementById('cmd-in').value = ""; document.getElementById('term-error').innerText = "";
+                }, 1000);
+            },
+            "/scan_life": function() {
+                const now = Date.now();
+                const cooldown = 15000;
+
+                if (now - lastScanTime < cooldown) {
+                    const wait = Math.ceil((cooldown - (now - lastScanTime)) / 1000);
+                    logTerm(`ERROR: SOBRECALENTAMIENTO DEL SENSOR. ESPERE ${wait}S.`, "log-error");
+                    speak("Sensor sobrecalentado.");
+                    return;
+                }
+
+                lastScanTime = now;
+                logTerm("ESFORZANDO ESCÁNER DE FOTONES... CONSUMO ALTO", "log-warn");
+                
+                if (Math.random() < 0.3) {
+                    logTerm("¡CRÍTICO! ESCÁNER DETECTADO POR EL AGUJERO NEGRO", "log-error");
+                    setTimeout(() => {
+                        document.getElementById('term-error').innerText = "BLOQUEO DE SEGURIDAD ACTIVADO";
+                        document.getElementById('login-section').style.display = 'block';
+                        document.getElementById('reset-section').style.display = 'none';
+                        document.getElementById('user-in').value = ""; document.getElementById('pass-in').value = "";
+                        speak("Seguridad comprometida.");
+                    }, 800);
+                    return;
+                }
+
+                const hidden = secret.split('').filter(l => !guessed.includes(l));
+                if(hidden.length > 0) {
+                    const l = hidden[Math.floor(Math.random() * hidden.length)];
+                    logTerm(`FRECUENCIA ENCONTRADA: CANAL '${l}'`, "log-success");
+                    speak("Letra interceptada: " + l);
+                    const btn = document.getElementById(`key-${l}`);
+                    if(btn) btn.style.boxShadow = "0 0 20px var(--cyan-glow)";
+                } else {
+                    logTerm("SISTEMA YA SINCRONIZADO", "log-warn");
+                }
+            },
+            "/shield_up": function() {
+                if(fails > 0) {
+                    logTerm("REPARANDO CAPA DE PROTECCIÓN EXTERNA...", "log-info");
+                    document.getElementById(`h${fails}`).style.display = "none";
+                    fails--;
+                    logTerm("ESCUDO RESTABLECIDO AL 15%", "log-success");
+                } else {
+                    logTerm("ESCUDOS AL MÁXIMO", "log-warn");
+                }
+            },
+            "/read_logs": function() {
+                logTerm("CARGANDO ARCHIVOS DE MEMORIA...", "log-info");
+                setTimeout(() => {
+                    logTerm("LOG [2007]: Nunca dejaré que esta nave caiga.", "log-success");
+                    logTerm("LOG [2007]: Flor María es el motor de este viaje.", "log-success");
+                }, 500);
+            },
+            "/status_oxigeno": function() {
+                logTerm("MONITOREANDO NIVELES ATMOSFÉRICOS...", "log-warn");
+                setTimeout(() => {
+                    logTerm("OXÍGENO: 12% | CO2: 4% | ESTADO: CRÍTICO", "log-error");
+                    speak("Alerta: Niveles de oxígeno en reserva.");
+                }, 600);
+            },
+            "/msg_florecita": function() {
+                logTerm("BUSCANDO MENSAJES ENCRIPTADOS EN EL NÚCLEO...", "log-info");
+                setTimeout(() => {
+                    logTerm("MENSAJE RECUPERADO: 'Florecita, eres mi horizonte.'", "log-success");
+                    speak("Mensaje de amor detectado.");
+                }, 800);
+            },
+            "/hack_life": function() {
+                if(fails > 0) {
+                    logTerm("HACKEANDO PROTOCOLOS DE SEGURIDAD...", "log-warn");
+                    setTimeout(() => {
+                        document.getElementById(`h${fails}`).style.display = "none";
+                        fails--;
+                        logTerm("SISTEMA ENGAÑADO: INTEGRIDAD RESTAURADA", "log-success");
+                        speak("Integridad de la cabina recuperada.");
+                    }, 1000);
+                } else {
+                    logTerm("LA NAVE ESTÁ INTACTA. HACK INNECESARIO.", "log-warn");
+                }
+            },
+            // --- COMANDO ULTRA COMPLEJO (IDEA SOLICITADA) ---
+            "/initiate_quantum_displacement_v2007_auth_confirmed_florecita_omega": function() {
+                logTerm("INICIANDO PROTOCOLO DE DESPLAZAMIENTO CUÁNTICO...", "log-info");
+                logTerm("ESTADO: NIVEL OMEGA REQUERIDO", "log-warn");
+                setTimeout(() => {
+                    logTerm("SINCRONIZANDO CON RECUERDO_2007...", "log-success");
+                    speak("Protocolo Omega iniciado. Saltando al horizonte.");
+                    setTimeout(() => {
+                        // Cerramos terminal y forzamos el salto
+                        terminal.style.display = 'none';
+                        body.classList.remove('glitch-heavy', 'shake');
+                        active = false;
+                        isWin = true; // Forzamos victoria para que finalBueno() funcione
+                        die();
+                        setTimeout(() => {
+                            finalBueno();
+                        }, 1500); // Pequeña espera para que la animación de die() avance
+                    }, 1000);
+                }, 1000);
+            }
+        };
+
+        document.getElementById('cmd-in').addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                const cmd = document.getElementById('cmd-in').value.trim();
+                if(terminalCommands[cmd]) {
+                    terminalCommands[cmd]();
+                } else {
+                    logTerm("COMANDO NO RECONOCIDO", "log-error");
+                    document.getElementById('term-error').innerText = "ERROR: COMANDO INCORRECTO";
+                }
+            }
+        });
+
+        function scrambleKeys() {
+            const keys = document.querySelectorAll('.key-btn');
+            keys.forEach(k => {
+                const rx = Math.floor(Math.random() * 60 - 30) + 'px';
+                const ry = Math.floor(Math.random() * 60 - 30) + 'px';
+                const ra = Math.floor(Math.random() * 40 - 20) + 'deg';
+                k.style.setProperty('--rx', rx);
+                k.style.setProperty('--ry', ry);
+                k.style.setProperty('--ra', ra);
+                k.classList.add('scrambled');
+                if(Math.random() > 0.8) k.style.visibility = 'hidden';
+                else k.style.visibility = 'visible';
+            });
+        }
+
+        function failAction() {
+            const dot = document.getElementById('danger-dot');
+            dot.style.display = "block";
+            dot.style.top = (5 + (fails * 7)) + "%";
+
+            fails++;
+            if(fails <= 6) document.getElementById(`h${fails}`).style.display = "block";
+            body.classList.add('shake');
+            cockpit.classList.add('glitch-heavy');
+            const msg = warningMsgs[fails - 1] || "COLAPSO TOTAL";
+            alertSys.innerText = msg;
+            scrambleKeys();
+            setTimeout(() => {
+                body.classList.remove('shake');
+                cockpit.classList.remove('glitch-heavy');
+            }, 500);
+            if(fails >= 6) { isWin = false; die(); }
+        }
+
+        function update() {
+            const current = secret.split('').map(l => guessed.includes(l) ? l : "_").join(' ');
+            document.getElementById('word-display').innerText = current;
+            if(!current.includes('_')) {
+                active = false;
+                isWin = true;
+                alertSys.innerText = "SISTEMA RECUPERADO";
+                setTimeout(() => die(), 1000);
+            }
+        }
+
+        function die() {
+            active = false;
+            cockpit.style.opacity = '0';
+            cockpit.style.transform = 'scale(0.2) rotate(45deg)';
+            
+            if(!isWin) {
+                document.getElementById('settings-toggle').style.display = 'none';
+                document.getElementById('settings-menu').style.display = 'none';
+            }
+
+            setTimeout(() => {
+                cockpit.style.display = 'none';
+                voyage.style.display = 'flex';
+                body.classList.add('shake');
+                if(isWin) {
+                    document.getElementById('settings-toggle').style.display = 'block';
+                    warningText.innerHTML = "SISTEMA DE EMERGENCIA ONLINE<br>FLORECITA, TENEMOS UNA OPORTUNIDAD";
+                    document.getElementById('btn2').style.borderColor = "yellow";
+                    document.getElementById('btn2').style.color = "yellow";
+                }
+    
+                let i = 0;
+                let msgInterval = setInterval(() => {
+                    if(!isWin) warningText.innerText = warningMsgs[i % warningMsgs.length];
+                    i++;
+                }, 1800);
+  
+                setTimeout(() => {
+                    if(!isWin) {
+                        clearInterval(msgInterval);
+                        voyage.style.display = 'none';
+                        theVoid.style.display = 'block';
+                    }
+                }, 34500);
+            }, 1000);
+        }
+
+        function finalBueno() {
+            if(!isWin) return;
+            const btn = document.getElementById('btn2');
+            btn.classList.add('loading-active');
+            btn.querySelector('.status-txt').innerText = "CALCULANDO SALTO...";
+            body.classList.add('glitch-hyper', 'shake');
+            setTimeout(() => {
+                theVoid.style.display = 'block';
+                body.classList.remove('glitch-hyper', 'shake');
+
+                setTimeout(() => {
+                    theVoid.style.display = 'none';
+                    document.getElementById('falling-obj').style.display = 'none';
+                    voyage.style.background = 'radial-gradient(circle, #001 0%, #000 100%)';
+                    warningText.style.color = '#00f2ff';
+                    warningText.style.animation = 'none';
+                    warningText.style.pointerEvents = 'auto';
+                    showTelemetry();
+                    document.getElementById('btn1').style.display = 'none';
+                    document.getElementById('btn2').style.display = 'none';
+                    document.getElementById('btn3').style.display = 'none';
+                }, 3000);
+            }, 3000);
+        }
+
+        function showTelemetry() {
+            waitingForNavChoice = true;
+            warningText.innerHTML = `
+                <div class="telemetry-log">
+                    <b style="color:#fff">>> REPORTE DE TELEMETRÍA POS-SALTO</b><br>
+                    ---------------------------------------<br>
+                    ESTADO: COORDENADAS SEGURAS ALCANZADAS<br>
+                    DISTANCIA DEL AGUJERO NEGRO: 14.8 UA<br>
+                    DISTANCIA VIAJADA: 4.22 Años Luz (FTL)<br><br>
+                    <b>MOTORES:</b> 8500°C | <b>INTEGRIDAD:</b> 42%<br><br>
+                    <div class="nav-choice">
+                        ¿MOSTRAR SISTEMAS SOLARES CERCANOS?
+                        (Y / N)<br>
+                        <button class="choice-btn" onclick="showSystems(true)">[ Y ]</button>
+                        <button class="choice-btn" onclick="showSystems(false)">[ N ]</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.showSystems = function(choice) {
+            waitingForNavChoice = false;
+            const screen = document.querySelector('.telemetry-log');
+            if(choice) {
+                speak("Escaneando sistemas habitables cercanos.");
+                screen.innerHTML = `
+                    <b style="color:#fff">>> ESCANEO DE SISTEMAS CERCANOS</b><br>
+                    ---------------------------------------<br>
+                    <div class="star-system" onclick="selectSystem('Próxima Centauri')">
+                        <div class="star-visual" style="background:#ff6600"></div>
+                        <div>
+                            <b>PRÓXIMA CENTAURI</b><br>
+                            <span class="sys-details">DIST: 4.24 AL | MASA: 0.12 Soles | TEMP: 3,042 K</span><br>
+                            <span class="habitability-tag h-maybe">POTENCIALMENTE HABITABLE - EXOPLANETA B DETECTADO</span>
+                        </div>
+                    </div>
+                    <div class="star-system" onclick="selectSystem('Sirius A')">
+                        <div class="star-visual" style="background:#fff"></div>
+                        <div>
+                            <b>SIRIUS A</b><br>
+                            <span class="sys-details">DIST: 8.60 AL | MASA: 2.02 Soles | TEMP: 9,940 K</span><br>
+                            <span class="habitability-tag h-no">NO HABITABLE - RADIACIÓN UV EXTREMA</span>
+                        </div>
+                    </div>
+                    <div class="star-system" onclick="selectSystem('Gliese 581')">
+                        <div class="star-visual" style="background:#ff3300"></div>
+                        <div>
+                            <b>GLIESE 581</b><br>
+                            <span class="sys-details">DIST: 20.4 AL | MASA: 0.31 Soles | TEMP: 3,480 K</span><br>
+                            <span class="habitability-tag h-yes">ALTA PROBABILIDAD - ZONA RIZITOS DE ORO</span>
+                        </div>
+                    </div>
+                    <div class="star-system" onclick="selectSystem('Alpha Centauri A')">
+                        <div class="star-visual" style="background:#ffcc00"></div>
+                        <div>
+                            <b>ALPHA CENTAURI A</b><br>
+                            <span class="sys-details">DIST: 4.37 AL | MASA: 1.10 Soles | TEMP: 5,790 K</span><br>
+                            <span class="habitability-tag h-yes">SISTEMA ESTABLE - SIMILAR AL SOL</span>
+                        </div>
+                    </div>
+                    <span style="color:yellow">>> SELECCIONA UN DESTINO PARA FINALIZAR EL VIAJE.</span>
+                `;
+            } else {
+                screen.innerHTML = `
+                    <b style="color:#fff">>> INICIANDO PROTOCOLO DE REPOSO</b><br>
+                    ---------------------------------------<br>
+                    <span style="color:#00f2ff">ESTADO NAVE: EN DERIVA SEGURA</span><br>
+                    <span style="color:#00f2ff">MOTORES: APAGADOS</span><br>
+                    <span style="color:#ff8c00">MODO REINICIO: ACTIVADO...</span><br><br>
+                    <div id="cooling-status">
+                        PROGRESO ENFRIAMIENTO: <span id="cool-perc">0</span>%<br>
+                        TEMPERATURA NÚCLEO: <span id="temp-val">8500</span>°C<br>
+                        ESTADO TÉRMICO: <span style="color:red">CRÍTICO</span>
+                    </div><br>
+                    <span style="color:#00ff41">INICIANDO MODO HIBERNACIÓN.</span><br>
+                    <span style="color:#00ff41">BUEN VIAJE, FLORECITA.</span>
+                `;
+                let cooling = 0;
+                let temp = 8500;
+                const interval = setInterval(() => {
+                    cooling += 5;
+                    temp -= 400;
+                    if (cooling > 70) {
+                        cooling = 70;
+                        temp = 2550;
+                        clearInterval(interval);
+                        setTimeout(() => { theVoid.style.display = 'block'; }, 2000);
+                    }
+                    document.getElementById('cool-perc').innerText = cooling;
+                    document.getElementById('temp-val').innerText = temp;
+                }, 200);
+            }
+        };
+
+        window.selectSystem = function(name) {
+            speak("Destino confirmado: " + name + ". Llegaremos pronto, Florecita.");
+            alert("Ruta trazada hacia " + name + ". ¡Viaje estelar completado!");
+            location.reload();
+        }
+
+        function toggleSettings() {
+            const menu = document.getElementById('settings-menu');
+            menu.style.display = menu.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        function resetGame() {
+            if (fails >= 6 && !isWin) return;
+            fails = 0; guessed = []; active = true; isWin = false;
+            document.getElementById('settings-toggle').style.display = 'block';
+            document.getElementById('cockpit').style.display = 'block';
+            document.getElementById('cockpit').style.opacity = '1';
+            document.getElementById('cockpit').style.transform = 'none';
+            document.getElementById('space-voyage').style.display = 'none';
+            document.getElementById('the-void').style.display = 'none';
+            document.getElementById('danger-dot').style.display = "none";
+            document.getElementById('danger-dot').style.top = "5%";
+            for(let i=1; i<=6; i++) document.getElementById(`h${i}`).style.display = "none";
+            initKeyboard(); update(); toggleSettings();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (!waitingForNavChoice) return;
+            if (e.key.toUpperCase() === 'Y') showSystems(true);
+            else if (e.key.toUpperCase() === 'N') showSystems(false);
+        });
+        function panelAction(id) {
+            const btn = document.getElementById(id);
+            btn.classList.add('loading-active');
+            btn.querySelector('.status-txt').innerText = "PROCESANDO...";
+            body.classList.add('glitch-heavy');
+            setTimeout(() => {
+                btn.classList.remove('loading-active');
+                btn.querySelector('.status-txt').innerText = "ERROR DE SISTEMA";
+                body.classList.remove('glitch-heavy');
+            }, 1200);
+        }
+
+        initKeyboard();
+        update();
+    </script>
+</body>
+</html>
